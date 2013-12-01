@@ -1,0 +1,73 @@
+<?php
+
+/**
+ * @file
+ * Defines the Database columns for the 'curriculum_fields_objective',
+ * 'curriculum_fields_environment', 'curriculum_fields_qualification' fields
+ *
+ * @author Chris Perkins <chrisperkinsuk@gmail.com>
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public Licence
+ * @copyright (c) 2013, Christopher Perkins
+ */
+
+/**
+ * Implements hook_field_schema().
+ *
+ * Define only the field columns.
+ *
+ * @param array $field
+ * @return array
+ */
+function curriculum_fields_field_schema($field) {
+
+  // Declare the database columns for the qualifications field.
+  if ($field['type'] == 'curriculum_fields_objective') {
+
+    $columns = array(
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE
+      ),
+      'objective' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE
+      ),
+    );
+  }
+
+  // Declare the database columns for the qualifications field.
+  if ($field['type'] == 'curriculum_fields_environment') {
+
+    $columns = array(
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE
+      ),
+      'environment' => array(
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE
+      ),
+    );
+  }
+
+  // Declare the database column for the qualifications field.
+  if ($field['type'] == 'curriculum_fields_qualification') {
+
+    $columns = array(
+      'qualification' => array(
+        'type' => 'varchar',
+        'length' => 35,
+        'not null' => FALSE
+      ),
+    );
+  }
+
+  return array(
+    'columns' => $columns,
+    'indexes' => array(),
+  );
+}

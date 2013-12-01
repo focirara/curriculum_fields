@@ -1,0 +1,7 @@
+name = Curriculum Fields
+description = Builds a set of fields for the School Curriculum package.
+package = School Curriculum
+core = 7.x
+
+files[] = curriculum_fields.install
+files[] = curriculum_fields.module

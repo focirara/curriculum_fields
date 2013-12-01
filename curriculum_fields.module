@@ -1,0 +1,414 @@
+<?php
+
+/**
+ * @file
+ * Builds a set of fields for the School Curriculum package.
+ *
+ * @author Chris Perkins <chrisperkinsuk@gmail.com>
+ * @license http://opensource.org/licenses/gpl-license.php GNU Public Licence
+ * @copyright (c) 2013, Christopher Perkins
+ */
+
+/**
+ * @subpackage Includes
+ */
+
+/**
+ * Include curriculum_fields.form.inc for
+ *
+ * _curriculum_fields_objective_widget_form(),
+ * _curriculum_fields_environment_widget_form().
+ */
+module_load_include('inc', 'curriculum_fields', 'incs/curriculum_fields.form');
+
+/**
+ * Include curriculum_fields.validation.inc for
+ *
+ * _curriculum_fields_objective_field_validate(),
+ * _curriculum_fields_environment_field_validate().
+ */
+module_load_include('inc', 'curriculum_fields', 'incs/curriculum_fields.validation');
+
+/**
+ * Include curriculum_fields.helpers.inc for
+ *
+ * _curriculum_fields_qualification_builder(),
+ * _curriculum_fields_field_objective_presave(),
+ * _curriculum_fields_field_environment_presave().
+ */
+module_load_include('inc', 'curriculum_fields', 'incs/curriculum_fields.helpers');
+
+/**
+ * Include curriculum_fields.formatting.inc for
+ *
+ * _curriculum_fields_objective_formatter(),
+ * _curriculum_fields_environment_formatter(),
+ * _curriculum_fields_qualification_formatter().
+ */
+module_load_include('inc', 'curriculum_fields', 'incs/curriculum_fields.formatting');
+
+/**
+ * @subpackage FIELDS
+ * ************************************************
+ *                CUSTOM FIELDS
+ *
+ * 'curriculum_fields_objective'
+ * 'curriculum_fields_environment'
+ * 'curriculum_fields_qualification'
+ */
+/**
+ * @subpackage Field Management.
+ */
+
+/**
+ * Implements hook_field_info().
+ *
+ * Declare three fields:
+ * curriculum_fields_objective, curriculum_fields_environment and
+ * curriculum_fields_qualification to Drupal Field API.
+ *
+ * @return array Declares this modules fields to Field API
+ */
+function curriculum_fields_field_info() {
+
+  $fields = array();
+
+  // Field Representing a Learning Objective
+  $fields['curriculum_fields_objective'] = array(
+    'label' => t('Learning Objective'),
+    'description' => t('Stores a description of a learning objective or goal.'),
+    'default_widget' => 'curriculum_fields_objective_widget',
+    'default_formatter' => 'curriculum_fields_objective_formatter'
+  );
+
+  // Field Representing an Environmental Constraint
+  $fields['curriculum_fields_environment'] = array(
+    'label' => t('Environmental Constraint'),
+    'description' => t('Stores an explination of an Environmental '
+      . 'Constraint. Such as (must take place at night)'),
+    'default_widget' => 'curriculum_fields_environment_widget',
+    'default_formatter' => 'curriculum_fields_environment_formatter'
+  );
+
+  // Field Representing a Qualification Level
+  $fields['curriculum_fields_qualification'] = array(
+    'label' => t('Qualification Level'),
+    'description' => t('Stores a qualification of Pass, Merit or '
+      . 'Distinction against an entity. For instance an entity representing a '
+      . 'Learning Outcome may want to indicate that achieving that outcome '
+      . 'would qualify a student for a Pass, Merit or Distinction.'),
+    'default_widget' => 'curriculum_fields_qualification_widget',
+    'default_formatter' => 'curriculum_fields_qualification_formatter'
+  );
+  return $fields;
+}
+
+/**
+ * @subpackage Widget Management.
+ */
+
+/**
+ * Implements hook_field_widget_info().
+ *
+ * Declares widgets for use by fields to the Drupal Field API.
+ *
+ * Declare a multi-field widgetfor both the objective and environmental fields.
+ * The qualification field has just a dropdown widget.
+ *
+ * @return array - An associative array that describes the new fields to Field API
+ */
+function curriculum_fields_field_widget_info() {
+
+  $widgets = array();
+
+  // Create a new Learning Objective widget
+  $widgets['curriculum_fields_objective_widget'] = array(
+    'label' => t('Learning Objective widget'),
+    'field types' => array('curriculum_fields_objective'),
+  );
+
+  // Create an Environmental Constraint widget
+  $widgets['curriculum_fields_environment_widget'] = array(
+    'label' => t('Environmental Constraint Widget'),
+    'field types' => array('curriculum_fields_environment'),
+  );
+
+  // Qualification Widget
+  $widgets['curriculum_fields_qualification_widget'] = array(
+    'label' => t('Qualification Dropdown'),
+    'field types' => array('curriculum_fields_qualification'),
+  );
+  return $widgets;
+}
+
+/**
+ * Implements hook_field_widget_form().
+ *
+ * @param array $form
+ * @param array $form_state
+ * @param array $field
+ * @param array $instance
+ * @param string $langcode
+ * @param array $items
+ * @param array $delta
+ * @param array $element
+ */
+function curriculum_fields_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+  // Build the widget form for the Objective Create widget
+  if ($instance['widget']['type'] == 'curriculum_fields_objective_widget') {
+
+    $element = _curriculum_fields_objective_widget_form($items, $delta, $element);
+
+  }
+
+  // Build the widget form for the Environmental Constraint Create widget
+  if ($instance['widget']['type'] == 'curriculum_fields_environment_widget') {
+
+    $element = _curriculum_fields_environment_widget_form($items, $delta, $element);
+  }
+
+  // Build the widget form for the Qualification Select widget
+  if ($instance['widget']['type'] == 'curriculum_fields_qualification_widget') {
+
+    // Use current setting for required, if set.
+    $required = $element['#required'];
+
+    // Build qualifications array.
+    $quals = _curriculum_fields_qualification_builder();
+
+    // Define the Environmental field for the Form API
+    $element['qualification'] = array(
+      '#title' => t('Qualification Level'),
+      '#type' => 'select',
+      '#options' => $quals,
+      '#required' => $required,
+      // use #default_value to prepopulate the element
+      // with the current saved value
+      '#default_value' => $quals['pass'],
+    );
+  }
+  return $element;
+}
+
+/**
+ * @subpackage Validation.
+ */
+
+/**
+ * Implements hook_field_is_empty().
+ *
+ * This method tells drupal how much data the form needs to be allowed to
+ * be submitted and sent for validation.
+ *
+ * This does not mean that the field will validate.
+ *
+ * @param array $item
+ * @param array $field
+ * @return boolean
+ */
+function curriculum_fields_field_is_empty($item, $field) {
+
+  // Set to Empty
+  $validate = FALSE;
+
+  // Check the objective field
+  if ($field['type'] == 'curriculum_fields_objective') {
+
+    if (!empty($item['name']) && !empty($item['objective'])) {
+      $validate = TRUE;
+    }
+
+    if (empty($item['name']) && !empty($item['objective'])) {
+      $validate = TRUE;
+    }
+
+    if (!empty($item['name']) && empty($item['objective'])) {
+      $validate = TRUE;
+    }
+  }
+
+  // Check the environment field
+  if ($field['type'] == 'curriculum_fields_environment') {
+
+    if (!empty($item['name']) && !empty($item['environment'])) {
+      $validate = TRUE;
+    }
+
+    if (empty($item['name']) && !empty($item['environment'])) {
+      $validate = TRUE;
+    }
+
+    if (!empty($item['name']) && empty($item['environment'])) {
+      $validate = TRUE;
+    }
+  }
+
+  // Check the qualification field
+  if ($field['type'] == 'curriculum_fields_qualification') {
+
+    // Build qualifications array.
+    $quals = _curriculum_fields_qualification_builder();
+
+    foreach ($quals as $qual_machine => $qual) {
+
+      if ($item['qualification'] == $qual_machine) {
+        $validate = TRUE;
+      }
+    }
+  }
+  return !$validate;
+}
+
+
+/**
+ * Implements hook_field_validate().
+ *
+ * @param string $entity_type
+ * @param Entity $entity
+ * @param array $field
+ * @param array $instance
+ * @param string $langcode
+ * @param array $items
+ * @param array $errors
+ */
+function curriculum_fields_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+
+  if ($field['type'] == 'curriculum_fields_objective') {
+
+    _curriculum_fields_objective_field_validate($field, $instance, $langcode, $items, $errors);
+  }
+
+  if ($field['type'] == 'curriculum_fields_environment') {
+
+    _curriculum_fields_environment_field_validate($field, $instance, $langcode, $items, $errors);
+  }
+
+  if ($field['type'] == 'curriculum_fields_qualification') {
+
+    // Get qualifications array.
+    $quals = _curriculum_fields_qualification_builder();
+
+    foreach ($items as $delta => $item) {
+
+      if (!array_key_exists($item['qualification'], $quals)) {
+
+        $errors[$field['field_name']][$langcode][$delta][] = array(
+          'error' => 'curriculum_fields_qualification_bad_value',
+          'message' => t('%title: The qualification %value is not a valid value. '
+            . 'Please check your widget code.', array('%title' =>
+              $instance['label'], '%value' => $item['qualification'])),
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_field_widget_error().
+ *
+ * @param array $element
+ * @param array $error
+ * @param array $form
+ * @param array $form_state
+ */
+function curriculum_fields_field_widget_error($element, $error, $form, &$form_state) {
+
+  switch ($error['error']) {
+    // Handle the error that was set in curriculum_fields_field_validate().
+    case 'curriculum_fields_objective_type':
+    case 'curriculum_fields_objective_length':
+    case 'curriculum_fields_objective_missing_name':
+    case 'curriculum_fields_environment_type':
+    case 'curriculum_fields_environment_length':
+    case 'curriculum_fields_environment_missing_name':
+    case 'curriculum_fields_qualification_bad_value':
+      form_error($element, $error['message']);
+      break;
+    case 'default':
+      form_error($element, $error['message']);
+      break;
+  }
+}
+
+function curriculum_fields_field_presave($entity_type, $entity, $field, $instance, $langcode, &$items) {
+
+  if ($field['type'] == 'curriculum_fields_objective') {
+
+    _curriculum_fields_field_objective_presave($items);
+  }
+
+  if ($field['type'] == 'curriculum_fields_environment') {
+
+    _curriculum_fields_field_environment_presave($items);
+  }
+}
+
+
+/**
+ * @subpackage Formater Management.
+ */
+
+/**
+ * Implements hook_field_formatter_info().
+ *
+ * @return array
+ */
+function curriculum_fields_field_formatter_info() {
+  return array(
+    'curriculum_fields_objective_formatter' => array(
+      'label' => t('Learning Environment Constraints Format'),
+      'field types' => array('curriculum_fields_objective'),
+    ),
+    'curriculum_fields_environment_formatter' => array(
+      'label' => t('Environmental Constraint Formatter'),
+      'field types' => array('curriculum_fields_environment'),
+    ),
+    'curriculum_fields_qualification_formatter' => array(
+      'label' => t('Learning Outcome Qualification Formatter'),
+      'field types' => array('curriculum_fields_qualification'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ *
+ * @param string $entity_type
+ * @param Entity $entity
+ * @param array $field
+ * @param array $instance
+ * @param string $langcode
+ * @param array $items
+ * @param array $display
+ * @return array
+ */
+function curriculum_fields_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+
+  $element = array();
+
+  switch ($display['type']) {
+    case 'curriculum_fields_objective_formatter':
+      $format_field = '_' . $display['type'];
+      break;
+    case 'curriculum_fields_environment_formatter':
+      $format_field = '_' . $display['type'];
+      break;
+    case 'curriculum_fields_qualification_formatter':
+      $format_field = '_' . $display['type'];
+      break;
+  }
+
+  foreach ($items as $delta => $item) {
+
+    $element[$delta] = $format_field($item);
+  }
+
+  return $element;
+}
+
+/**
+ *************************************************
+ *                CUSTOM FIELDS
+ *                    --END--
+ */
